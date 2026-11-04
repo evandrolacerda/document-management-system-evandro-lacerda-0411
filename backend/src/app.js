@@ -1,7 +1,6 @@
-// Seed do servidor backend do Document Management System.
+// Servidor backend do Document Management System.
 //
-// Este arquivo é apenas um ponto de partida mínimo. Ao longo do workshop você
-// vai usar o Agent Mode do GitHub Copilot para construir as camadas:
+// Camadas (Clean Architecture simples):
 //   - routes/       (definição das rotas)
 //   - controllers/  (entrada HTTP e validação)
 //   - services/     (regras de negócio)
@@ -11,16 +10,34 @@
 // usando multer com diskStorage. Não utilize provedores externos.
 
 const express = require('express');
+const multer = require('multer');
+const documentRoutes = require('./routes/documentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Endpoint de verificação de saúde. As demais rotas (/upload, /documents,
-// /documents/:id/download) serão implementadas durante o Passo 2.
+// Endpoint de verificação de saúde.
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Rotas de documentos: /upload, /documents e /documents/:id/download.
+app.use(documentRoutes);
+
+// Tratamento centralizado de erros (limites do sistema).
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return res
+      .status(413)
+      .json({ error: 'Arquivo excede o tamanho máximo permitido.' });
+  }
+  if (err.code === 'INVALID_FILE_TYPE') {
+    return res.status(400).json({ error: err.message });
+  }
+  console.error(err);
+  res.status(500).json({ error: 'Erro interno do servidor.' });
 });
 
 if (require.main === module) {
